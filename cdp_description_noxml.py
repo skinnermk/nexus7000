@@ -29,11 +29,6 @@ a link status change
 
 '''
 
-import sys
-import re
-from cisco import cli
-
-
 # Sample Output of the CLI : 
 '''
 Capability Codes: R - Router, T - Trans-Bridge, B - Source-Route-Bridge
@@ -53,60 +48,74 @@ Lotos-PE3(JAF1817AMLJ)
 
 Total entries displayed: 4
 '''
+import sys
+import re
+from cisco import cli
 
 # Execute the command on the switch
 raw_input = cli("show cdp neighbors")
 
 # Split the output into a list containing each line
 all_raw_lines = raw_input.split('\n')
-#print all_raw_lines
+
+#change to tuples for length evaluation
+tuple_lines1 = tuple(all_raw_lines)
+
+#create the final list
+list_final = []
+
+#zero variables for current shell
+x=0
+y=0
+
+'''
+for loop to process lines with names that don't fit the columns and the output that gives the /n after the device ID. Some names extend past the field and require 
+intelligence to ensure they are properly associated with the interfaces they are supposed to be listed with. 
+Creates tuples to evaluate the lists and creates a final list for the final stages of processing. Skips blank lines...
+'''
+
+for x in tuple_lines1:
+    x=y
+    if y < len(tuple_lines1):
+        if len(tuple_lines1[y]) == 0:
+            y = y + 1
+            pass
+#device ID's that extend past 25 characters need this line changed to a higher evaluation number        
+        elif len(tuple_lines1[y]) <= 25:
+            list_final.append(tuple_lines1[y] + tuple_lines1[y+1])
+            x = x + 2
+            y = y + 2
+        else:
+            list_final.append(tuple_lines1[y])
+            y = y + 1
+    
+#print list_final
 
 
-
-# We need to ignore the first few lines, including the header of the table. This
-# code does that
-
-all_device_lines = []
-line_no = 0
-dev_list = {}
-for line in all_raw_lines:
-    line_no += 1
-    if line_no <= 6:
-        pass
-    else:
-        all_device_lines.append(line)
-
-# Also remove the last three lines, which contain the footer - Total Entries
-# displayed
-
-for i in range(3):
-    all_device_lines.pop();
-
-
-#print all_device_lines
-
-# We now have only the table, which has a line containing switch nae followed by
+'''
+# We now have only the table, which has a line containing switch name followed by
 # the cdp details
 
 # We iterate through this to build up our dictionary of local ports connected to
 # particular remote port and platform, switch
 
 # We use the local port as the key
+'''
 
-for idx, line in enumerate(all_device_lines):
-    if (idx % 2 == 0):
+dev_list = {}
+
+for idx, line in enumerate(list_final):
+    if idx < 5:
         pass
     else: 
         thisline = re.split('\s+',line)
         dev_list[thisline[1]] = {}
         dev_list[thisline[1]]['remote_port'] = thisline[-2]
         dev_list[thisline[1]]['platform'] = thisline[-3]
-        dev_list[thisline[1]]['switch_name'] = all_device_lines[idx-1]
+        dev_list[thisline[1]]['switch_name'] = thisline[0]
 
 # We can now use the data to configure the description on the switch
 
 for key, value in dev_list.items():
     cli ("conf t ")
     cli ('interface ' + key + ' ; description ' + 'to ' + value['switch_name'] + ' (' +  value['platform'] + ') ' + value['remote_port'])
-
-
